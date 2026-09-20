@@ -1,0 +1,192 @@
+-- Violence District | Camera + FOV | by woxocu (compact modern)
+
+-- ===== СЕРВИСЫ / КОНФИГ =====
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UIS = game:GetService("UserInputService")
+local player = Players.LocalPlayer
+local camera = workspace.CurrentCamera
+
+local cfg = {FOV=90, X=1.5, Y=1.0, Z=0, On=true}
+local hum
+
+local T = {
+    bg=Color3.fromRGB(24,24,30),   panel=Color3.fromRGB(32,32,40),
+    el=Color3.fromRGB(42,42,52),   acc=Color3.fromRGB(88,130,255),
+    accD=Color3.fromRGB(60,80,160),txt=Color3.fromRGB(230,230,240),
+    dim=Color3.fromRGB(140,140,160), grn=Color3.fromRGB(60,170,100),
+}
+
+-- ===== ХЕЛПЕРЫ =====
+local function new(c,p,par) local o=Instance.new(c) for k,v in pairs(p) do o[k]=v end if par then o.Parent=par end return o end
+local function r1(v) return math.floor(v*10+0.5)/10 end
+
+-- ===== ПЕРСОНАЖ =====
+hum = (player.Character or player.CharacterAdded:Wait()):WaitForChild("Humanoid")
+player.CharacterAdded:Connect(function(c) hum = c:WaitForChild("Humanoid") end)
+
+-- ===== ЛОГИКА КАМЕРЫ =====
+local function resetCam()
+    if hum and hum.Parent then hum.CameraOffset = Vector3.new(0,0,0) end
+    camera.FieldOfView = 70
+end
+
+RunService.RenderStepped:Connect(function()
+    if not cfg.On or not hum or not hum.Parent then return end
+    if camera.FieldOfView ~= cfg.FOV then camera.FieldOfView = cfg.FOV end
+    hum.CameraOffset = Vector3.new(cfg.X, cfg.Y, cfg.Z)
+end)
+
+-- ===== КОМПОНЕНТЫ =====
+local function section(parent, text, order)
+    return new("TextLabel", {
+        Size=UDim2.new(1,0,0,24), BackgroundTransparency=1, Text=text,
+        TextColor3=T.dim, Font=Enum.Font.GothamBold, TextSize=11,
+        TextXAlignment=Enum.TextXAlignment.Left, LayoutOrder=order
+    }, parent)
+end
+
+local function slider(parent, name, mn, mx, def, order, cb)
+    local h = new("Frame", {Size=UDim2.new(1,0,0,46), BackgroundTransparency=1, LayoutOrder=order}, parent)
+
+    new("TextLabel", {Size=UDim2.new(0.7,0,0,18), BackgroundTransparency=1,
+        Text=name, TextColor3=T.txt, Font=Enum.Font.Gotham, TextSize=12,
+        TextXAlignment=Enum.TextXAlignment.Left}, h)
+
+    local val = new("TextLabel", {Size=UDim2.new(0.3,0,0,18), Position=UDim2.new(0.7,0,0,0),
+        BackgroundTransparency=1, Text=tostring(def), TextColor3=T.acc,
+        Font=Enum.Font.GothamBold, TextSize=12, TextXAlignment=Enum.TextXAlignment.Right}, h)
+
+    local bar = new("Frame", {Size=UDim2.new(1,0,0,8), Position=UDim2.new(0,0,0,30),
+        BackgroundColor3=T.el, BorderSizePixel=0}, h)
+    new("UICorner", {CornerRadius=UDim.new(0,4)}, bar)
+
+    local fill = new("Frame", {Size=UDim2.new((def-mn)/(mx-mn),0,1,0),
+        BackgroundColor3=T.acc, BorderSizePixel=0}, bar)
+    new("UICorner", {CornerRadius=UDim.new(0,4)}, fill)
+
+    local knob = new("Frame", {Size=UDim2.new(0,14,0,14), AnchorPoint=Vector2.new(.5,.5),
+        Position=UDim2.new((def-mn)/(mx-mn),0,.5,0),
+        BackgroundColor3=Color3.fromRGB(255,255,255), BorderSizePixel=0, ZIndex=2}, bar)
+    new("UICorner", {CornerRadius=UDim.new(1,0)}, knob)
+
+    local hit = new("TextButton", {Size=UDim2.new(1,0,0,26), Position=UDim2.new(0,0,0,22),
+        BackgroundTransparency=1, Text="", ZIndex=3}, h)
+
+    local drag = false
+    local function upd(i)
+        local r = math.clamp((i.Position.X-bar.AbsolutePosition.X)/bar.AbsoluteSize.X, 0, 1)
+        local v = r1(mn+(mx-mn)*r)
+        local sr = (v-mn)/(mx-mn)
+        fill.Size = UDim2.new(sr,0,1,0)
+        knob.Position = UDim2.new(sr,0,.5,0)
+        val.Text = tostring(v)
+        cb(v)
+    end
+    hit.InputBegan:Connect(function(i)
+        if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then
+            drag=true; upd(i)
+        end
+    end)
+    UIS.InputChanged:Connect(function(i)
+        if drag and (i.UserInputType==Enum.UserInputType.MouseMovement or i.UserInputType==Enum.UserInputType.Touch) then upd(i) end
+    end)
+    UIS.InputEnded:Connect(function(i)
+        if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then drag=false end
+    end)
+end
+
+local function toggle(parent, name, def, order, cb)
+    local btn = new("TextButton", {Size=UDim2.new(1,0,0,38), BackgroundColor3=T.el,
+        BorderSizePixel=0, Text="", LayoutOrder=order}, parent)
+    new("UICorner", {CornerRadius=UDim.new(0,8)}, btn)
+
+    new("TextLabel", {Size=UDim2.new(0.7,0,1,0), Position=UDim2.new(0,12,0,0),
+        BackgroundTransparency=1, Text=name, TextColor3=T.txt,
+        Font=Enum.Font.Gotham, TextSize=13, TextXAlignment=Enum.TextXAlignment.Left}, btn)
+
+    local pill = new("Frame", {Size=UDim2.new(0,44,0,22), Position=UDim2.new(1,-54,.5,0),
+        AnchorPoint=Vector2.new(0,.5), BackgroundColor3=def and T.grn or T.el,
+        BorderSizePixel=0}, btn)
+    new("UICorner", {CornerRadius=UDim.new(1,0)}, pill)
+
+    local dot = new("Frame", {Size=UDim2.new(0,16,0,16), AnchorPoint=Vector2.new(0,.5),
+        Position=def and UDim2.new(1,-18,.5,0) or UDim2.new(0,2,.5,0),
+        BackgroundColor3=Color3.fromRGB(255,255,255), BorderSizePixel=0}, pill)
+    new("UICorner", {CornerRadius=UDim.new(1,0)}, dot)
+
+    local st = def
+    btn.MouseButton1Click:Connect(function()
+        st = not st
+        pill.BackgroundColor3 = st and T.grn or T.el
+        dot.Position = st and UDim2.new(1,-18,.5,0) or UDim2.new(0,2,.5,0)
+        cb(st)
+    end)
+end
+
+-- ===== ПОСТРОЕНИЕ ОКНА =====
+local gui = new("ScreenGui", {Name="VD_CameraGUI", ResetOnSpawn=false,
+    ZIndexBehavior=Enum.ZIndexBehavior.Sibling}, player:WaitForChild("PlayerGui"))
+
+local frame = new("Frame", {Size=UDim2.new(0,280,0,380), Position=UDim2.new(0,20,0,100),
+    BackgroundColor3=T.bg, BackgroundTransparency=0.05, BorderSizePixel=0,
+    Active=true, Draggable=true, ClipsDescendants=true}, gui)
+new("UICorner", {CornerRadius=UDim.new(0,12)}, frame)
+new("UIStroke", {Color=T.accD, Thickness=1, Transparency=0.5}, frame)
+
+-- Шапка
+local header = new("Frame", {Size=UDim2.new(1,0,0,38), BackgroundColor3=T.panel,
+    BorderSizePixel=0}, frame)
+new("UICorner", {CornerRadius=UDim.new(0,12)}, header)
+new("Frame", {Size=UDim2.new(1,0,0,12), Position=UDim2.new(0,0,1,-12),
+    BackgroundColor3=T.panel, BorderSizePixel=0}, header)
+
+new("TextLabel", {Size=UDim2.new(1,-80,0,18), Position=UDim2.new(0,14,0,4),
+    BackgroundTransparency=1, Text="Camera Settings", TextColor3=T.txt,
+    Font=Enum.Font.GothamBold, TextSize=14, TextXAlignment=Enum.TextXAlignment.Left}, header)
+
+new("TextLabel", {Size=UDim2.new(1,-80,0,12), Position=UDim2.new(0,14,1,-16),
+    BackgroundTransparency=1, Text="by woxocu", TextColor3=T.dim,
+    Font=Enum.Font.Gotham, TextSize=10, TextXAlignment=Enum.TextXAlignment.Left}, header)
+
+local minBtn = new("TextButton", {Size=UDim2.new(0,28,0,28), Position=UDim2.new(1,-36,.5,0),
+    AnchorPoint=Vector2.new(0,.5), BackgroundColor3=T.el, BorderSizePixel=0,
+    Text="—", TextColor3=T.txt, Font=Enum.Font.GothamBold, TextSize=16}, header)
+new("UICorner", {CornerRadius=UDim.new(0,6)}, minBtn)
+
+-- Контент
+local content = new("ScrollingFrame", {Size=UDim2.new(1,0,1,-38), Position=UDim2.new(0,0,0,38),
+    BackgroundTransparency=1, BorderSizePixel=0, ScrollBarThickness=3,
+    ScrollBarImageColor3=T.accD, CanvasSize=UDim2.new(0,0,0,0),
+    AutomaticCanvasSize=Enum.AutomaticSize.Y}, frame)
+
+new("UIListLayout", {SortOrder=Enum.SortOrder.LayoutOrder, Padding=UDim.new(0,8)}, content)
+new("UIPadding", {PaddingTop=UDim.new(0,10), PaddingLeft=UDim.new(0,14),
+    PaddingRight=UDim.new(0,14), PaddingBottom=UDim.new(0,14)}, content)
+
+section(content, "КАМЕРА", 1)
+slider(content, "FOV",        70, 120, cfg.FOV, 2, function(v) cfg.FOV=v end)
+slider(content, "Смещение X", -3, 3,   cfg.X,   3, function(v) cfg.X=v end)
+slider(content, "Смещение Y", -2, 3,   cfg.Y,   4, function(v) cfg.Y=v end)
+slider(content, "Смещение Z", -3, 3,   cfg.Z,   5, function(v) cfg.Z=v end)
+
+section(content, "УПРАВЛЕНИЕ", 6)
+toggle(content, "Активно", cfg.On, 7, function(s)
+    cfg.On = s
+    if not s then resetCam() end
+end)
+
+section(content, "ИНФО", 8)
+new("TextLabel", {Size=UDim2.new(1,0,0,40), BackgroundTransparency=1,
+    Text="Слайдеры меняют камеру\nв реальном времени.", TextColor3=T.dim,
+    Font=Enum.Font.Gotham, TextSize=11, TextXAlignment=Enum.TextXAlignment.Left,
+    TextYAlignment=Enum.TextYAlignment.Top, TextWrapped=true, LayoutOrder=9}, content)
+
+-- Сворачивание
+local mini, fullH, miniH = false, 380, 38
+minBtn.MouseButton1Click:Connect(function()
+    mini = not mini
+    frame:TweenSize(UDim2.new(0,280,0, mini and miniH or fullH),
+        Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.18, true)
+    minBtn.Text = mini and "+" or "—"
+end)
